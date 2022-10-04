@@ -1,6 +1,6 @@
 
-## Initialization
-# Load libraries
+## 1.) Initialization ----
+#  * Load libraries ----
 library(SUMMER)
 library(rgdal)
 library(INLA)
@@ -16,18 +16,18 @@ library(raster)
 library(spatialEco)
 library(mvtnorm)
 
-# Load functions
+#  * Load functions ----
 source("modSPDEJitter.R")
 source("makeIntegrationPoints.R")
 source('functions.R')
-load("") # load the parameter estimates from your analysis on real data
-         # estimated log_tau and log_kappa will be used to calculate rangeSc
-         # and sigma.sim
+load("") # load the parameter estimates from your analysis on real data (with
+         # the adjusted model). Estimated log_tau and log_kappa will be used to 
+         # calculate rangeSc and sigma.sim
 
 #set the seeds
 set.seed(2345)
 
-# Setup
+# * Setup ----
 
 # Spatial Range (in kilometers)
 rangeSc = sqrt(8.0)/exp(log_kappa)
@@ -62,10 +62,10 @@ boundarySc = TRUE
 #  corresponds to one scenario)
 nSim = 50
 
-#Geography and demography data
+## 2.) Geography and demography data----
 
-## Load and prepare geography
-# # Read map
+# Load and prepare the geography
+# Read the maps
 NGA_1 = readOGR(dsn = "dataFiles/gadm40_NGA_shp",
                             layer = "gadm40_NGA_1")
 
@@ -87,7 +87,7 @@ myData = data.frame(clusterIdx = educationData$v001, householdIdx = educationDat
                     age = educationData$v012,
                     secondaryEducation = educationData$v106)
 
-# subset the data for age and secondary education completion :
+# Subset the data for age and secondary education completion :
 myData = subset(myData, age <= 39 & age >=20)
 myData$ys = (myData$secondaryEducation>=2)+0
 
@@ -142,7 +142,7 @@ nigeria.data$north = rep(NA, length(nigeria.data$long))
 nigeria.data[,c("east", "north")] = convertDegToKM(nigeria.data[,c("long", "lat")])
 locKM = nigeria.data[,c("east", "north")]
 
-#PREDICTION LOCATIONS (follow either the first or the second approach)
+# Prediction locations (follow either the first or the second approach)
 
 # 1.) Choosing 1000 locations randomly from a grid :
 xx = seq(min(nigeria.data$long), max(nigeria.data$long), length.out = 50)
@@ -156,7 +156,7 @@ grid <- SpatialPointsDataFrame(grid, data.frame(id=1:2500)) #we have 2500 points
 grid@proj4string@projargs = NGA_0@proj4string@projargs
 
 
-#Remove the locations that are outside of Kenya
+#Remove the locations that are outside Kenya
 grid=erase.point(grid, NGA_0, inside = FALSE)
 
 #Remove the points that are inside Lake Chad
@@ -165,7 +165,7 @@ grid=erase.point(grid, NGA_2[160,], inside = TRUE)
 # #Make a new loc.pred matrix from the remaining points
 loc.pred = cbind(grid@coords[ ,1], grid@coords[ ,2])
 
-# Select certain number of prediction locations
+# Select certain number (1000 here) of prediction locations
 nPred = 1000
 idx = sample.int(dim(loc.pred)[1], size = nPred)
 loc.pred = loc.pred[idx,]
@@ -205,7 +205,7 @@ idx = 1:80201
 # extract central coordinates of each cell with respect to the index (idx)
 predCoords = xyFromCell(predRaster, cell = idx) # prediction locations
 
-# SIMULATION #
+## 3.) Simulations ----
 
 #betas = estimated intercept and the covariate coefficients from Adjusted model on real data
 
@@ -265,40 +265,40 @@ for(k in 1:nrow(betas)){
             
             simulationNumber[[paste("Simulation", l)]] = sim.data
           }
-          ######
+          #
           if (h==1){
             jitteringFactor[["jitteringFactor = 1"]] = simulationNumber
           }else {
             jitteringFactor[["jitteringFactor = 4"]] = simulationNumber
           }
-          ######
+          #
           
         }
-        ######
+        #
         if (j==1){
           spatialRange[["range from RealData"]] = jitteringFactor
         }else {
           spatialRange[["range = 340 km"]]  = jitteringFactor
         }
-        ######
+        #
       }
-      ######
+      #
       if (i==1){
         likelihoodType[["binomial likelihood"]] = spatialRange
       }else {
         likelihoodType[["Gaussian likelihood"]] = spatialRange
       }
-      ######
+      #
     }
-    ######
+    #
     if (boundarySc==TRUE){
       admin1Boundaries[["Borders respected"]] = likelihoodType
     }else {
       admin1Boundaries[["Borders not respected"]] = likelihoodType
     }
-    ######
+    #
   }
-  ######
+  #
   if (k==1){
     simulatedData[["scaledBetasby0.5"]] = admin1Boundaries
   }else if (k==2){
@@ -306,7 +306,7 @@ for(k in 1:nrow(betas)){
   }else{
     simulatedData[["scaledBetasby2"]]  = admin1Boundaries
   }
-  ######
+  #
 }
 
 # create the mesh
@@ -318,13 +318,14 @@ mesh.s <- inla.mesh.2d(loc.domain = cbind(nigeria.data$east, nigeria.data$north)
                        max.edge=c(25, 50))
 
 
-# Compile .cpp files
+# 4.) Compile .cpp files----
 
 # standard and jittering accounted models in one file
 compile( "simulations.cpp")
 dyn.load( dynlib("simulations") )
 
-# Prepare the inputs for model fitting with TMB
+# 5.) Prepare the inputs ----
+# for model fitting with TMB
 
 inputs = list()
 for(k in 1:nrow(betas)){
@@ -412,40 +413,40 @@ for(k in 1:nrow(betas)){
                                                                         tmbInputSmoothed = tmbInputSmoothed)
             #simulationNumber[[paste("Simulation", l, "locations")]] = locObs
           }
-          ######
+          #
           if (h==1){
             jitteringFactor[["jitteringFactor = 1"]] = simulationNumber
           }else {
             jitteringFactor[["jitteringFactor = 4"]] = simulationNumber
           }
-          ######
+          #
           
         }
-        ######
+        #
         if (j==1){
           spatialRange[["range from RealData"]] = jitteringFactor
         }else {
           spatialRange[["range = 340 km"]]  = jitteringFactor
         }
-        ######
+        #
       }
-      ######
+      #
       if (i==1){
         likelihoodType[["binomial likelihood"]] = spatialRange
       }else {
         likelihoodType[["Gaussian likelihood"]] = spatialRange
       }
-      ######
+      #
     }
-    ######
+    #
     if (boundarySc==TRUE){
       admin1Boundaries[["Borders respected"]] = likelihoodType
     }else {
       admin1Boundaries[["Borders not Respected"]] = likelihoodType
     }
-    ######
+    #
   }
-  ######
+  #
   if (k==1){
     inputs[["scaledBetasby0.5"]] = admin1Boundaries
   }else if (k==2){
@@ -453,7 +454,7 @@ for(k in 1:nrow(betas)){
   }else{
     inputs[["scaledBetasby2"]]  = admin1Boundaries
   }
-  ######
+  #
 }        
 
 
@@ -474,7 +475,7 @@ rand_effs <- c("Epsilon_s", "beta")
 
 nLoc = length(nigeria.data$east)
 
-#Extract covariate values at the prediction locations
+# Extract covariate values at the prediction locations
 
 locPredDegree = cbind(loc.pred$long, loc.pred$lat)
 predCoordsDegrees = SpatialPoints(locPredDegree, proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs"), bbox = NULL)
@@ -528,7 +529,7 @@ covariatesAtPred = cbind(rep(1, length(popAtPred)),
                          covariatesAtPred$urbanicityAtPred)
 
 
-#Extract smoothed covariate values for the prediction locations
+# Extract smoothed covariate values at the prediction locations
 
 locPredDegree = cbind(loc.pred$long, loc.pred$lat)
 predCoordsDegrees = SpatialPoints(locPredDegree, proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs"), bbox = NULL)
@@ -582,6 +583,7 @@ covariatesAtPredSmoothed = cbind(rep(1, length(popAtPredSmoothed)),
                          covariatesAtPredSmoothed$urbanicityAtPredSmoothed)
 
 
+# 6.) Run TMB----
 outputTMB = list()
 for(k in 1:nrow(betas)){
   admin1Boundaries = list()
@@ -714,40 +716,40 @@ for(k in 1:nrow(betas)){
             simulationNumber[[paste("Simulation", l)]] = Results
             
           }
-          ######
+          #
           if (h==1){
             jitteringFactor[["jitteringFactor = 1"]] = simulationNumber
           }else {
             jitteringFactor[["jitteringFactor = 4"]] = simulationNumber
           }
-          ######
+          #
           
         }
-        ######
+        #
         if (j==1){
           spatialRange[["range from RealData"]] = jitteringFactor
         }else {
           spatialRange[["range = 340 km"]]  = jitteringFactor
         }
-        ######
+        #
       }
-      ######
+      #
       if (i==1){
         likelihoodType[["binomial likelihood"]] = spatialRange
       }else {
         likelihoodType[["Gaussian likelihood"]] = spatialRange
       }
-      ######
+      #
     }
-    ######
+    #
     if (boundarySc==TRUE){
       admin1Boundaries[["Borders respected"]] = likelihoodType
     }else {
       admin1Boundaries[["Borders not Respected"]] = likelihoodType
     }
-    ######
+    #
   }
-  ######
+  #
   if (k==1){
     outputTMB[["scaledBetasby0.5"]] = admin1Boundaries
   }else if (k==2){
@@ -755,7 +757,7 @@ for(k in 1:nrow(betas)){
   }else{
     outputTMB[["scaledBetasby2"]]  = admin1Boundaries
   }
-  ######
+  #
 }        
 
 save(outputTMB, file = "output.RData")  
