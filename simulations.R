@@ -20,7 +20,9 @@ library(mvtnorm)
 source("modSPDEJitter.R")
 source("makeIntegrationPoints.R")
 source('functions.R')
-load("") # load the results of your analysis on real data
+load("") # load the parameter estimates from your analysis on real data
+         # estimated log_tau and log_kappa will be used to calculate rangeSc
+         # and sigma.sim
 
 #set the seeds
 set.seed(2345)
@@ -28,13 +30,14 @@ set.seed(2345)
 # Setup
 
 # Spatial Range (in kilometers)
+rangeSc = sqrt(8.0)/exp(log_kappa)
 
-#rangeSc = the spatial range estimated by the Adjusted model using real data
-# > rangeSc
-# [1] 117.5852
+# Marginal variance
+sigma.sim = 1.0 / sqrt(4.0 * 3.14159265359 *
+                         exp(2.0 * log_tau) * exp(2.0 * log_kappa))
 
-rangeSc = c(117.5852)
-rangeMaternPri =160 # the range value that will be passed into first tmbInput and then into 
+
+rangeMaternPri =160 # the range value that will be first passed into tmbInput, and then into 
                     # the data object of TMB, and will be used as input of C++ for constructing 
                     # the PC-priors
 
@@ -45,15 +48,18 @@ nSubRPerPoint = 10
 nSubAPerPoint = 10
 
 # Jittering Factor
-scaleSc = c(1)  # the defaultmax. DHS jittering distances can be scaled and tested using this
+scaleSc = c(1)  # the default max. DHS jittering distances can be scaled and tested using this
+                # currently it is scaled by 1 (non-scaled)
 
 #Likelihood :
 likelihoodSc = as.matrix(rbind(likelihood = c(1), nuggetVar = c(0), p = c(0.5)))
 
-# Provincial Boundaries : # respecting admin. area boundaries while jittering (or not)
-boundarySc = TRUE
+# Provincial Boundaries : # respecting admin1 area boundaries while jittering (or not)
+boundarySc = TRUE         
 
 # number of simulations per scenario 
+# (each combination of boundarySc, likelihoodSc, scaleSc and rangeSc 
+#  corresponds to one scenario)
 nSim = 50
 
 #Geography and demography data
@@ -67,10 +73,8 @@ NGA_0 = readOGR(dsn = "dataFiles/gadm40_NGA_shp",
                             layer = "gadm40_NGA_0")
 
 educationData = read_dta("NGIR7BDT/NGIR7BFL.DTA")
-#educationData$v012
-#educationData$v106
 
-# Read coordinates
+# Read the coordinates
 corList = readOGR(dsn = "dataFiles/DHS/NG_2018_DHS_02242022_98_147470/NGGE7BFL",
                              layer = "NGGE7BFL")
 
@@ -83,7 +87,7 @@ myData = data.frame(clusterIdx = educationData$v001, householdIdx = educationDat
                     age = educationData$v012,
                     secondaryEducation = educationData$v106)
 
-
+# subset the data for age and secondary education completion :
 myData = subset(myData, age <= 39 & age >=20)
 myData$ys = (myData$secondaryEducation>=2)+0
 
@@ -134,11 +138,12 @@ check1 = check1[-c(48, 122,  205,  848,  857, 1116, 1122, 1287, 1328),]
 nigeria.data$east = rep(NA, length(nigeria.data$long))
 nigeria.data$north = rep(NA, length(nigeria.data$long)) 
 
-# Assign coordinates in kilometers to clusters
+# Assign coordinates in kilometers to the clusters
 nigeria.data[,c("east", "north")] = convertDegToKM(nigeria.data[,c("long", "lat")])
 locKM = nigeria.data[,c("east", "north")]
 
-#PREDICTION LOCATIONS    
+#PREDICTION LOCATIONS (follow either the first or the second approach)
+
 # 1.) Choosing 1000 locations randomly from a grid :
 xx = seq(min(nigeria.data$long), max(nigeria.data$long), length.out = 50)
 yy = seq(min(nigeria.data$lat), max(nigeria.data$lat), length.out = 50)
@@ -197,7 +202,7 @@ projection(predRaster) = "+units=km +proj=utm +zone=37 +ellps=clrk80 +towgs84=-1
 
 # make an index for the number of cells :
 idx = 1:80201
-# extract central coordinates of each cell following the index (idx)
+# extract central coordinates of each cell with respect to the index (idx)
 predCoords = xyFromCell(predRaster, cell = idx) # prediction locations
 
 # SIMULATION #
@@ -214,7 +219,7 @@ betas = rbind(Results_RealData[["Results_CR"]][["SD0"]][["par.random"]][1:6]/2, 
                
 # settings
 intercept = logit(0.5)
-sigma.sim =        #marginal variance from the adjusted model on real data
+sigma.sim =        #marginal variance obtained from the adjusted model on real data
 #>sigma.sim
 # [1] 1.734917
 
@@ -224,7 +229,7 @@ simLoc = rbind(as.matrix(nigeria.data[, c("east", "north")]),
 
 ns = nigeria.data$ns
 
-# Load the covariate rasters :
+# Load the covariate rasters and smoothed rasters:
 load("")
 
 #simulate the responses and spatial field
@@ -304,7 +309,7 @@ for(k in 1:nrow(betas)){
   ######
 }
 
-
+# create the mesh
 mesh.s <- inla.mesh.2d(loc.domain = cbind(nigeria.data$east, nigeria.data$north),
                        n=5000, 
                        max.n=10000,
@@ -319,7 +324,7 @@ mesh.s <- inla.mesh.2d(loc.domain = cbind(nigeria.data$east, nigeria.data$north)
 compile( "simulations.cpp")
 dyn.load( dynlib("simulations") )
 
-# Prepare inputs for model fitting with TMB
+# Prepare the inputs for model fitting with TMB
 
 inputs = list()
 for(k in 1:nrow(betas)){
@@ -342,7 +347,7 @@ for(k in 1:nrow(betas)){
             
             
             modelParams = list(intercept = intercept,
-                               range.sim = range.sim,  #kilometers
+                               range.sim = range.sim,  #in kilometers
                                sigma.sim = sigma.sim,
                                sigma.cluster.sim = sigma.cluster.sim)
             
@@ -352,8 +357,8 @@ for(k in 1:nrow(betas)){
                                jScale = jScale)
             
             # TMB Input
-            locObs = Displace(scale = jScale,
-                              locKM = locKM,
+            locObs = Displace(scale = jScale,        # randomly displace (jitter)
+                              locKM = locKM,         # the coordinates
                               urbanRural = nigeria.data$urbanRuralDHS,
                               Admin1ShapeFile = NGA_1,
                               check1 = check1,
@@ -454,22 +459,23 @@ for(k in 1:nrow(betas)){
 
 # parameters
 tmb_params <- list(beta=rep(0, 6),
-                   #log_tau = 5, # Log tau (i.e. log spatial precision, Epsilon)
-                   log_tau = Results_RealData[["Results_CR"]][["SD0"]][["par.fixed"]][["log_tau"]], # Log tau (i.e. log spatial precision, Epsilon)
-                   log_kappa = Results_RealData[["Results_CR"]][["SD0"]][["par.fixed"]][["log_kappa"]], # SPDE parameter related to the range
-                   Epsilon_s = rep(0, mesh.s[['n']])#,  RE on mesh vertices
-                   #log_nug_std = log(sqrt(0.1))
+                   log_tau =   , # log_tau value estimated from the real data using adjusted model
+                                 # Log tau (i.e. log spatial precision, Epsilon)
+                   log_kappa = , # log_kappa value estimated from the real data using adjusted model
+                                 # log_kappa (SPDE parameter related to the range)
+                   Epsilon_s = rep(0, mesh.s[['n']]) #,  Random effect on mesh vertices
+                   #log_nug_std = log(sqrt(0.1)) # can be used when nugget is included
 )
 
 
 # random effects
 rand_effs <- c("Epsilon_s", "beta")
 
-# Fit the models with TMB
+
 nLoc = length(nigeria.data$east)
 
-
 #Extract covariate values at the prediction locations
+
 locPredDegree = cbind(loc.pred$long, loc.pred$lat)
 predCoordsDegrees = SpatialPoints(locPredDegree, proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs"), bbox = NULL)
 
@@ -507,7 +513,7 @@ urbanicityAtPred[is.na(urbanicityAtPred)] <- 0
 urbanicityAtPred[is.nan(urbanicityAtPred)] = 0
 covariatesAtPred$urbanicityAtPred <- urbanicityAtPred
 
-# TRAVEL TIME DATA
+# Travel time
 
 accessCitiesAtpred <- raster::extract(travelTimeRaster, predCoordsDegrees, ncol=2)
 accessCitiesAtpred[is.nan(accessCitiesAtpred)] = 0
@@ -522,8 +528,8 @@ covariatesAtPred = cbind(rep(1, length(popAtPred)),
                          covariatesAtPred$urbanicityAtPred)
 
 
-# smoothed covariates at prediction locations :
-#Extract covariate values for the prediction locations
+#Extract smoothed covariate values for the prediction locations
+
 locPredDegree = cbind(loc.pred$long, loc.pred$lat)
 predCoordsDegrees = SpatialPoints(locPredDegree, proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs"), bbox = NULL)
 
@@ -561,7 +567,7 @@ urbanicityAtPredSmoothed[is.na(urbanicityAtPredSmoothed)] <- 0
 urbanicityAtPredSmoothed[is.nan(urbanicityAtPredSmoothed)] = 0
 covariatesAtPredSmoothed$urbanicityAtPredSmoothed <- urbanicityAtPredSmoothed
 
-# TRAVEL TIME DATA
+# Travel time
 
 accessCitiesAtpredSmoothed <- raster::extract(travelTimeSmoothRaster, predCoordsDegrees, ncol=2)
 accessCitiesAtpredSmoothed[is.nan(accessCitiesAtpredSmoothed)] = 0
@@ -609,7 +615,7 @@ for(k in 1:nrow(betas)){
             print(l)
             
             
-            # fitting with the smoothed covariates 
+            # fitting with the smoothed covariates (doesn't account for jittering)
             
             dataListSmoothed[[l]][["flagRandomField"]] = 0
             dataListSmoothed[[l]][["flagCovariates"]] = 0
@@ -627,9 +633,9 @@ for(k in 1:nrow(betas)){
                                               covariatesAtPred = covariatesAtPredSmoothed,
                                               betaSim = betaSim), TRUE)
 
-            # Accounting for jittering in covariates and random field (on/off => 1/0)
+            # Accounting for jittering or not (on/off => 1/0)
             
-            #Unadjusted model (doesn't account for jittering at all)
+            #Unadjusted model (doesn't account for jittering)
             dataList[[l]][["flagRandomField"]] = 0
             dataList[[l]][["flagCovariates"]] = 0
             print("Unadjusted")
@@ -662,7 +668,7 @@ for(k in 1:nrow(betas)){
                                                   covariatesAtPred = covariatesAtPred,
                                                   betaSim = betaSim), TRUE)
             #
-            # # Accounting for jittering in random field (on/off => 1/0)
+            # # Accounting for jittering in random field
             dataList[[l]][["flagRandomField"]] = 1
             dataList[[l]][["flagCovariates"]] = 0
             print("R")
