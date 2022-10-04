@@ -1,6 +1,7 @@
 #...............................................................................
-#
-#    These are the helper functions for our main script.                       #
+#        These are the helper functions for our main script       
+#    titled "The Impact of Jittering on Raster- and Distance-based 
+#               Geostatistical Analyses of DHS Data"
 #...............................................................................
 
 # Convert from lon/lat to easting/northing
@@ -722,7 +723,7 @@ FitSamplePredict = function(nLoc, theIntercept, dataList, parameters, random,  f
   PredictedResponses <- cbind(mean = (apply(eta.samples, 1, mean)),
                               median = (apply(eta.samples, 1, median)),
                               sd     = (apply(eta.samples, 1, sd)),
-                              lower = (apply(eta.samples, 1, quantile, .025, na.rm = TRUE)),  #na.rm = TRUE is newly added
+                              lower = (apply(eta.samples, 1, quantile, .025, na.rm = TRUE)), 
                               upper = (apply(eta.samples, 1, quantile, .975, na.rm = TRUE)))
   intercept = beta_draws[1,]
   beta_distRiversLakes = beta_draws[2,]
@@ -781,7 +782,7 @@ FitSamplePredict = function(nLoc, theIntercept, dataList, parameters, random,  f
               mu = mu,
               BIAS = BIAS,
               RMSE = RMSE,
-              fixed.par = par[c(7,8)]))   # these two are log_tau and log_kappa
+              fixed.par = par[c(7,8)]))   # c(7,8) are log_tau and log_kappa
 }
 
 
