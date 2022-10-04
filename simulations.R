@@ -606,7 +606,7 @@ for(k in 1:nrow(betas)){
           for (l in 1:nSim){
             dataList[[l]] = inputs[[k]][[g]][[i]][[j]][[h]][[l]][["tmbInput"]][["data"]] # data input
             dataListSmoothed[[l]] = inputs[[k]][[g]][[i]][[j]][[h]][[l]][["tmbInputSmoothed"]][["data"]] # data input
-            u.sim[[l]] = simulatedData[[k]][[g]][[i]][[j]][[h]][[l]][["u.sim"]][-(1:nLoc)]
+            u.sim[[l]] = simulatedData[[k]][[g]][[i]][[j]][[h]][[l]][["u.sim"]][-(1:nLoc)]  # the random field
             flag2[[l]] = likelihoodSc[[1, i]]
           }
           
