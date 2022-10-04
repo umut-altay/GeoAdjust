@@ -648,7 +648,7 @@ FitSamplePredict = function(nLoc, theIntercept, dataList, parameters, random,  f
                    parameters=parameters,
                    random = random,
                    hessian=TRUE,
-                   DLL='simulations_5covariate')
+                   DLL='simulations')
   
   
   obj <- normalize(obj, flag="flag1", value = 0)
