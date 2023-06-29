@@ -156,7 +156,7 @@ grid <- SpatialPointsDataFrame(grid, data.frame(id=1:2500)) #we have 2500 points
 grid@proj4string@projargs = NGA_0@proj4string@projargs
 
 
-#Remove the locations that are outside Kenya
+#Remove the locations that are outside Nigeria
 grid=erase.point(grid, NGA_0, inside = FALSE)
 
 #Remove the points that are inside Lake Chad
