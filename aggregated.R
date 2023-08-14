@@ -3,7 +3,7 @@ library(rgdal)
 library(sp)
 library(rgeos)
 library(raster)
-
+library(ggplot2)
 
 # Geography
 proj = "+units=km +proj=utm +zone=37 +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +no_defs"
