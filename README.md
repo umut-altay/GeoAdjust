@@ -1,1 +1,3 @@
-#Supplementary code for the paper : "Jittering Impacts Raster- and Distance-based Geostatistical Analyses of DHS Data"
+#Supplementary code for the paper : "Impact of Jittering on Raster- and
+Distance-based Geostatistical Analyses of
+DHS Data"
