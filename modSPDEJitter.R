@@ -25,8 +25,8 @@ getSPDEPrior = function(mesh, U=1, alpha=0.05, medianRange=NULL) {
   spde
 }
 
-# get a reasonable default mesh triangulation for the SPDE model for the Kenya data
-getSPDEMeshKenya = function(locs=NULL, n=5000, max.n=5000, doPlot=FALSE, max.edge=c(7, 200), 
+# get a reasonable default mesh triangulation for the SPDE model for the data
+getSPDEMesh = function(locs=NULL, n=5000, max.n=5000, doPlot=FALSE, max.edge=c(7, 200), 
                             offset=-.08, cutoff=4, jitterAmount=max.edge[1]/4, seed=123) {
   
   if(is.null(locs)) {
