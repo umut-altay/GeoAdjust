@@ -1,7 +1,7 @@
 #...............................................................................
 #        These are the helper functions for our main script       
-#    titled "The Impact of Jittering on Raster- and Distance-based 
-#               Geostatistical Analyses of DHS Data"
+#    titled "Jittering Impacts Raster- and Distance-based Geostatistical 
+#                      Analyses of DHS Data"
 #...............................................................................
 
 # Convert from lon/lat to easting/northing
