@@ -1,4 +1,4 @@
-# AGGREGATED (AREAL) SUBNATIONAL UNCERTAINTY PLOTS FOR NDHS2018
+# Aggregated (areal) prediction and uncertainty plots for NDHS2018
 library(rgdal)
 library(sp)
 library(rgeos)
@@ -140,8 +140,6 @@ rm(Results_NN)
 
 ratioAggregatedUncertainty = cvNN/cvCR
 ratioAggregatedPred = meanNN/meanCR
-save(ratioAggregatedUncertainty, ratioAggregatedPred, file= "")
-
 
 
 # Prepare for plotting
@@ -281,14 +279,9 @@ ggplot() +
 ggsave("ratioAggregatedPred.pdf", path = "", width = 30.24 , height = 22.34, units = "cm")
 
 
-
-
-
-
-
-
 # Scatter plots
 
+load the file containing the direct estimates created by using the script called "getDirectEsts.R" .
 #####################
 meanDirect = directEst$est
 dfCRmean = data.frame(direct = meanDirect, s = meanCR)
