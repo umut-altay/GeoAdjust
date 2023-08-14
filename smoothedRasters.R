@@ -18,6 +18,7 @@ distRiverLakeRaster = processedCovariateData[["minDistRiverlakes"]]
 
 
 #smoothing the rasters
+# d : If type=circle, the radius of the circle (in units of the crs) 
 hmm = focalWeight(elevationRaster,d = 5/111, type = "circle")
 hmm = hmm/max(hmm)
 elevationSmoothRaster = focal(elevationRaster, hmm, fun = mean, na.rm = TRUE)
